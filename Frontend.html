@@ -1,22 +1,250 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Farm Polygon Capture (Offline)</title>
+  <title>High-Accuracy Farm Polygon Mapper</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
   <style>
-    #map { height: 70vh; width: 100%; }
-    button, input { margin: 5px; padding: 10px; font-size: 16px; }
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 0; 
+      padding: 10px; 
+      background-color: #f5f5f5; 
+    }
+    
+    .container { 
+      max-width: 100%; 
+      background: white; 
+      padding: 15px; 
+      border-radius: 8px; 
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+    }
+    
+    h2 { 
+      color: #2c5530; 
+      margin-top: 0; 
+      text-align: center; 
+    }
+    
+    #map { 
+      height: 60vh; 
+      width: 100%; 
+      border: 2px solid #ddd; 
+      border-radius: 8px; 
+      margin: 10px 0; 
+    }
+    
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px 0;
+      align-items: center;
+    }
+    
+    .layer-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    
+    select {
+      padding: 8px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    button {
+      padding: 12px 16px;
+      font-size: 14px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      font-weight: bold;
+    }
+    
+    .btn-primary { background-color: #4CAF50; color: white; }
+    .btn-primary:hover { background-color: #45a049; }
+    .btn-secondary { background-color: #2196F3; color: white; }
+    .btn-secondary:hover { background-color: #1976D2; }
+    .btn-danger { background-color: #f44336; color: white; }
+    .btn-danger:hover { background-color: #d32f2f; }
+    .btn-warning { background-color: #ff9800; color: white; }
+    .btn-warning:hover { background-color: #f57c00; }
+    
+    input[type="text"] {
+      padding: 12px;
+      font-size: 14px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .status-panel {
+      background: #e8f5e8;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 10px 0;
+      border-left: 4px solid #4CAF50;
+    }
+    
+    .gps-info {
+      background: #fff3cd;
+      padding: 10px;
+      border-radius: 6px;
+      margin: 10px 0;
+      border-left: 4px solid #ffc107;
+      font-size: 12px;
+    }
+    
+    .accuracy-indicator {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-left: 10px;
+    }
+    
+    .accuracy-good { background-color: #4CAF50; color: white; }
+    .accuracy-fair { background-color: #ff9800; color: white; }
+    .accuracy-poor { background-color: #f44336; color: white; }
+    
+    .point-counter {
+      font-weight: bold;
+      color: #2c5530;
+      margin-left: 10px;
+    }
+    
+    .auto-capture {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 34px;
+    }
+    
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }
+    
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .slider {
+      background-color: #4CAF50;
+    }
+    
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+    
+    .save-info {
+      background: #e3f2fd;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 10px 0;
+      border-left: 4px solid #2196F3;
+      font-size: 14px;
+    }
+    
+    @media (max-width: 600px) {
+      .controls { flex-direction: column; }
+      button { width: 100%; }
+      input[type="text"] { width: 100%; }
+    }
   </style>
 </head>
 <body>
 
-<h2>Offline Farm Mapper App</h2>
-<input type="text" id="farmName" placeholder="Enter Farm Name" />
-<button onclick="capturePoint()">Add Point</button>
-<button onclick="exportGeoJSON()">Download GeoJSON</button>
-<button onclick="exportCSV()">Download CSV</button>
-<div id="map"></div>
+<div class="container">
+  <h2>🌾 High-Accuracy Farm Polygon Mapper</h2>
+  
+  <div class="controls">
+    <input type="text" id="farmName" placeholder="Enter Farm Name" />
+    <span class="point-counter">Points: <span id="pointCount">0</span></span>
+  </div>
+  
+  <div class="layer-control">
+    <label for="mapLayer">Map Layer:</label>
+    <select id="mapLayer" onchange="changeMapLayer()">
+      <option value="satellite">Satellite</option>
+      <option value="osm">Street Map</option>
+      <option value="terrain">Terrain</option>
+      <option value="topo">Topographic</option>
+    </select>
+  </div>
+  
+  <div class="auto-capture">
+    <label for="autoCapture">Auto-capture mode:</label>
+    <label class="switch">
+      <input type="checkbox" id="autoCapture" onchange="toggleAutoCapture()">
+      <span class="slider"></span>
+    </label>
+    <span>Distance: <input type="number" id="autoDistance" value="5" min="1" max="50" style="width: 60px;"> meters</span>
+  </div>
+  
+  <div class="controls">
+    <button class="btn-primary" onclick="capturePoint()">📍 Add Point</button>
+    <button class="btn-warning" onclick="undoLastPoint()">↶ Undo Last</button>
+    <button class="btn-danger" onclick="clearAllPoints()">🗑️ Clear All</button>
+  </div>
+  
+  <div class="controls">
+    <button class="btn-secondary" onclick="exportGeoJSON()">📥 Download GeoJSON</button>
+    <button class="btn-secondary" onclick="exportCSV()">📊 Download CSV</button>
+    <button class="btn-secondary" onclick="exportKML()">🗺️ Download KML</button>
+  </div>
+  
+  <div class="status-panel">
+    <div>📊 Status: <span id="statusText">Ready to start mapping</span></div>
+    <div id="gpsAccuracy" class="gps-info">GPS Accuracy: Checking...</div>
+    <div id="areaInfo" style="margin-top: 10px;"></div>
+  </div>
+  
+  <div class="save-info">
+    <strong>💾 How Polygon Data is Saved:</strong><br>
+    • <strong>GeoJSON:</strong> Industry standard format with coordinates, properties, and metadata<br>
+    • <strong>CSV:</strong> Simple spreadsheet format with point coordinates<br>
+    • <strong>KML:</strong> Google Earth compatible format for visualization<br>
+    • Data includes: Farm name, area calculations, point count, and creation timestamp
+  </div>
+  
+  <div id="map"></div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 <script>
@@ -24,38 +252,309 @@
   let markers = [];
   let poly = null;
   let map;
+  let watchId = null;
+  let autoCapture = false;
+  let lastAutoPoint = null;
+  let currentAccuracy = null;
+  let startMarker = null;
+  let currentLayer = null;
+  
+  // High-accuracy GPS options
+  const gpsOptions = {
+    enableHighAccuracy: true,
+    timeout: 30000,
+    maximumAge: 0
+  };
+
+  // Map layer configurations with fallbacks
+  const mapLayers = {
+    satellite: [
+      {
+        name: "Esri World Imagery",
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        attribution: "Tiles &copy; Esri"
+      },
+      {
+        name: "Google Satellite",
+        url: "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+        attribution: "&copy; Google"
+      },
+      {
+        name: "Bing Satellite",
+        url: "https://ecn.t3.tiles.virtualearth.net/tiles/a{quad}?g=587&mkt=en-gb&n=z",
+        attribution: "&copy; Microsoft"
+      }
+    ],
+    osm: [
+      {
+        name: "OpenStreetMap",
+        url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        attribution: "&copy; OpenStreetMap contributors"
+      }
+    ],
+    terrain: [
+      {
+        name: "Stamen Terrain",
+        url: "https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}.png",
+        attribution: "Map tiles by Stamen Design, CC BY 3.0"
+      }
+    ],
+    topo: [
+      {
+        name: "OpenTopoMap",
+        url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+        attribution: "Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap"
+      }
+    ]
+  };
 
   function initializeMap(lat, lon) {
-    map = L.map('map').setView([lat, lon], 18);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles &copy; Esri'
-    }).addTo(map);
-    L.marker([lat, lon]).addTo(map).bindPopup("Start Location").openPopup();
+    map = L.map('map').setView([lat, lon], 19);
+    
+    // Initialize with satellite layer
+    loadMapLayer('satellite');
+    
+    // Add start location marker
+    startMarker = L.marker([lat, lon], {
+      icon: L.divIcon({
+        className: 'start-marker',
+        html: '🏠',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      })
+    }).addTo(map).bindPopup("Start Location").openPopup();
+    
+    // Start continuous GPS monitoring
+    startGPSMonitoring();
+    updateStatus("Map initialized. GPS monitoring active.");
+  }
+
+  function loadMapLayer(layerType) {
+    const layers = mapLayers[layerType];
+    
+    if (currentLayer) {
+      map.removeLayer(currentLayer);
+    }
+    
+    // Try each layer until one works
+    function tryLayer(index) {
+      if (index >= layers.length) {
+        console.error("All map layers failed to load");
+        updateStatus("Map layer failed to load. Please check your internet connection.");
+        return;
+      }
+      
+      const layerConfig = layers[index];
+      const layer = L.tileLayer(layerConfig.url, {
+        attribution: layerConfig.attribution,
+        maxZoom: 20,
+        subdomains: ['a', 'b', 'c']
+      });
+      
+      layer.on('tileerror', function() {
+        console.log(`Layer ${layerConfig.name} failed, trying next...`);
+        tryLayer(index + 1);
+      });
+      
+      layer.on('tileload', function() {
+        console.log(`Layer ${layerConfig.name} loaded successfully`);
+        currentLayer = layer;
+      });
+      
+      layer.addTo(map);
+      currentLayer = layer;
+    }
+    
+    tryLayer(0);
+  }
+
+  function changeMapLayer() {
+    const selectedLayer = document.getElementById('mapLayer').value;
+    loadMapLayer(selectedLayer);
+    updateStatus(`Switched to ${selectedLayer} layer`);
+  }
+
+  function startGPSMonitoring() {
+    if (navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
+        updateGPSInfo,
+        handleGPSError,
+        gpsOptions
+      );
+    }
+  }
+
+  function updateGPSInfo(position) {
+    const accuracy = Math.round(position.coords.accuracy);
+    currentAccuracy = accuracy;
+    
+    let accuracyClass = 'accuracy-poor';
+    let accuracyText = 'Poor';
+    
+    if (accuracy <= 3) {
+      accuracyClass = 'accuracy-good';
+      accuracyText = 'Excellent';
+    } else if (accuracy <= 8) {
+      accuracyClass = 'accuracy-fair';
+      accuracyText = 'Good';
+    }
+    
+    document.getElementById('gpsAccuracy').innerHTML = `
+      GPS Accuracy: ${accuracy}m 
+      <span class="accuracy-indicator ${accuracyClass}">${accuracyText}</span>
+      <br>Speed: ${position.coords.speed ? Math.round(position.coords.speed * 3.6) : 0} km/h
+    `;
+    
+    // Auto-capture logic
+    if (autoCapture && accuracy <= 8) {
+      const currentPos = [position.coords.latitude, position.coords.longitude];
+      const minDistance = parseInt(document.getElementById('autoDistance').value);
+      
+      if (!lastAutoPoint || calculateDistance(lastAutoPoint, currentPos) >= minDistance) {
+        capturePointAtLocation(currentPos, accuracy);
+        lastAutoPoint = currentPos;
+      }
+    }
+  }
+
+  function handleGPSError(error) {
+    let errorMsg = "GPS Error: ";
+    switch(error.code) {
+      case error.PERMISSION_DENIED:
+        errorMsg += "Location access denied";
+        break;
+      case error.POSITION_UNAVAILABLE:
+        errorMsg += "Location unavailable";
+        break;
+      case error.TIMEOUT:
+        errorMsg += "Location request timeout";
+        break;
+      default:
+        errorMsg += "Unknown error";
+    }
+    document.getElementById('gpsAccuracy').innerHTML = errorMsg;
+  }
+
+  function calculateDistance(pos1, pos2) {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = pos1[0] * Math.PI/180;
+    const φ2 = pos2[0] * Math.PI/180;
+    const Δφ = (pos2[0]-pos1[0]) * Math.PI/180;
+    const Δλ = (pos2[1]-pos1[1]) * Math.PI/180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c;
   }
 
   function drawPolygon() {
     if (poly) map.removeLayer(poly);
     if (points.length >= 2) {
-      poly = L.polyline([...points, points[0]], { color: 'green' }).addTo(map);
+      poly = L.polygon(points, { 
+        color: '#4CAF50', 
+        fillColor: '#4CAF50',
+        fillOpacity: 0.3,
+        weight: 3
+      }).addTo(map);
+      
+      // Calculate and display area
+      if (points.length >= 3) {
+        const area = calculatePolygonArea(points);
+        document.getElementById('areaInfo').innerHTML = `
+          📐 Area: ${area.toFixed(2)} m² (${(area/10000).toFixed(4)} hectares)
+        `;
+      }
     }
   }
 
+  function calculatePolygonArea(coords) {
+    let area = 0;
+    const numPoints = coords.length;
+    
+    for (let i = 0; i < numPoints; i++) {
+      const j = (i + 1) % numPoints;
+      const xi = coords[i][0] * Math.PI / 180;
+      const yi = coords[i][1] * Math.PI / 180;
+      const xj = coords[j][0] * Math.PI / 180;
+      const yj = coords[j][1] * Math.PI / 180;
+      
+      area += (yj - yi) * (2 + Math.sin(xi) + Math.sin(xj));
+    }
+    
+    area = Math.abs(area) * 6378137 * 6378137 / 2;
+    return area;
+  }
+
   function capturePoint() {
+    if (currentAccuracy && currentAccuracy > 10) {
+      if (!confirm(`GPS accuracy is ${currentAccuracy}m. This may affect precision. Continue?`)) {
+        return;
+      }
+    }
+    
     navigator.geolocation.getCurrentPosition(pos => {
       const latlng = [pos.coords.latitude, pos.coords.longitude];
-      points.push(latlng);
+      capturePointAtLocation(latlng, pos.coords.accuracy);
+    }, err => {
+      alert("Failed to get location: " + err.message);
+    }, gpsOptions);
+  }
 
-      const marker = L.marker(latlng, { draggable: true }).addTo(map);
-      marker.on('drag', function(e) {
-        const index = markers.indexOf(marker);
-        const newLatLng = [e.latlng.lat, e.latlng.lng];
-        points[index] = newLatLng;
-        drawPolygon();
-      });
-
-      markers.push(marker);
+  function capturePointAtLocation(latlng, accuracy) {
+    points.push(latlng);
+    
+    const marker = L.marker(latlng, { 
+      draggable: true,
+      icon: L.divIcon({
+        className: 'point-marker',
+        html: `${points.length}`,
+        iconSize: [25, 25],
+        iconAnchor: [12, 12]
+      })
+    }).addTo(map);
+    
+    marker.bindPopup(`Point ${points.length}<br>Accuracy: ${Math.round(accuracy)}m`);
+    
+    marker.on('drag', function(e) {
+      const index = markers.indexOf(marker);
+      const newLatLng = [e.latlng.lat, e.latlng.lng];
+      points[index] = newLatLng;
       drawPolygon();
-    }, err => alert("Failed to get location: " + err.message));
+    });
+
+    markers.push(marker);
+    drawPolygon();
+    
+    document.getElementById('pointCount').textContent = points.length;
+    updateStatus(`Point ${points.length} captured (±${Math.round(accuracy)}m)`);
+  }
+
+  function undoLastPoint() {
+    if (points.length > 0) {
+      points.pop();
+      const lastMarker = markers.pop();
+      map.removeLayer(lastMarker);
+      drawPolygon();
+      document.getElementById('pointCount').textContent = points.length;
+      updateStatus(`Last point removed. ${points.length} points remaining.`);
+    }
+  }
+
+  function toggleAutoCapture() {
+    autoCapture = document.getElementById('autoCapture').checked;
+    if (autoCapture) {
+      updateStatus("Auto-capture mode enabled. Walk around the boundary.");
+      lastAutoPoint = null;
+    } else {
+      updateStatus("Auto-capture mode disabled.");
+    }
+  }
+
+  function updateStatus(message) {
+    document.getElementById('statusText').textContent = message;
   }
 
   function exportGeoJSON() {
@@ -63,12 +562,23 @@
       alert("At least 3 points needed to export a polygon.");
       return;
     }
+    
     const name = document.getElementById("farmName").value || "Unnamed Farm";
+    const area = calculatePolygonArea(points);
+    
     const geojson = {
       type: "FeatureCollection",
       features: [{
         type: "Feature",
-        properties: { name: name },
+        properties: { 
+          name: name,
+          area_sqm: Math.round(area),
+          area_hectares: Math.round(area/10000 * 10000) / 10000,
+          points_count: points.length,
+          created_date: new Date().toISOString(),
+          coordinates_system: "WGS84",
+          precision_note: "GPS accuracy varied during capture"
+        },
         geometry: {
           type: "Polygon",
           coordinates: [[...points.map(p => [p[1], p[0]]), [points[0][1], points[0][0]]]]
@@ -76,13 +586,8 @@
       }]
     };
 
-    const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name.replace(/\s+/g, '_') + ".geojson";
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadFile(JSON.stringify(geojson, null, 2), name + ".geojson", "application/json");
+    updateStatus("GeoJSON exported successfully!");
   }
 
   function exportCSV() {
@@ -90,32 +595,119 @@
       alert("No points to export.");
       return;
     }
+    
     const name = document.getElementById("farmName").value || "Unnamed Farm";
-    let csvContent = "Latitude,Longitude\n";
-    points.forEach(p => csvContent += `${p[0]},${p[1]}\n`);
+    let csvContent = "Point_Number,Latitude,Longitude,Timestamp\n";
+    points.forEach((p, index) => {
+      csvContent += `${index + 1},${p[0]},${p[1]},${new Date().toISOString()}\n`;
+    });
 
-    const blob = new Blob([csvContent], { type: "text/csv" });
+    downloadFile(csvContent, name + ".csv", "text/csv");
+    updateStatus("CSV exported successfully!");
+  }
+
+  function exportKML() {
+    if (points.length < 3) {
+      alert("At least 3 points needed to export a polygon.");
+      return;
+    }
+    
+    const name = document.getElementById("farmName").value || "Unnamed Farm";
+    const area = calculatePolygonArea(points);
+    
+    const kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${name}</name>
+    <description>Farm boundary with area: ${Math.round(area)} m² (${(area/10000).toFixed(4)} hectares)</description>
+    <Placemark>
+      <name>${name}</name>
+      <description>Points: ${points.length}</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              ${points.map(p => `${p[1]},${p[0]},0`).join('\n              ')}
+              ${points[0][1]},${points[0][0]},0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>`;
+
+    downloadFile(kml, name + ".kml", "application/vnd.google-earth.kml+xml");
+    updateStatus("KML exported successfully!");
+  }
+
+  function downloadFile(content, filename, contentType) {
+    const blob = new Blob([content], { type: contentType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = name.replace(/\s+/g, '_') + ".csv";
+    a.download = filename.replace(/\s+/g, '_');
     a.click();
     URL.revokeObjectURL(url);
   }
 
-  // Center the map on the user's current location when the page loads
+  function clearAllPoints() {
+    if (points.length > 0 && !confirm("Are you sure you want to clear all points?")) {
+      return;
+    }
+    
+    points = [];
+    markers.forEach(marker => map.removeLayer(marker));
+    markers = [];
+    if (poly) {
+      map.removeLayer(poly);
+      poly = null;
+    }
+    document.getElementById('pointCount').textContent = 0;
+    document.getElementById('areaInfo').innerHTML = '';
+    updateStatus("All points cleared.");
+  }
+
+  // Initialize the app
   window.onload = () => {
     navigator.geolocation.getCurrentPosition(pos => {
       const lat = pos.coords.latitude;
       const lon = pos.coords.longitude;
       initializeMap(lat, lon);
     }, err => {
-      alert("Unable to access location. Showing already available location.");
-      initializeMap(20.5937, 78.9629); // fallback to center of India
-    });
+      alert("Unable to access location. Please enable GPS and refresh the page.");
+      // Default to a generic location
+      initializeMap(20.5937, 78.9629);
+    }, gpsOptions);
   };
 
-
+  // Cleanup on page unload
+  window.onbeforeunload = () => {
+    if (watchId) {
+      navigator.geolocation.clearWatch(watchId);
+    }
+  };
 </script>
+
+<style>
+  .point-marker {
+    background-color: #4CAF50;
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 25px;
+    font-weight: bold;
+    font-size: 12px;
+    border: 2px solid white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  }
+  
+  .start-marker {
+    font-size: 20px;
+    text-align: center;
+    line-height: 30px;
+  }
+</style>
+
 </body>
 </html>
