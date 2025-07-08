@@ -110,10 +110,12 @@
       const lon = pos.coords.longitude;
       initializeMap(lat, lon);
     }, err => {
-      alert("Unable to access location. Showing default location.");
+      alert("Unable to access location. Showing already available location.");
       initializeMap(20.5937, 78.9629); // fallback to center of India
     });
   };
+
+
 </script>
 </body>
 </html>
