@@ -181,6 +181,12 @@
       font-size: 14px;
     }
     
+    .start-marker {
+      font-size: 20px;
+      text-align: center;
+      line-height: 30px;
+    }
+    
     @media (max-width: 600px) {
       .controls { flex-direction: column; }
       button { width: 100%; }
@@ -258,15 +264,17 @@
   let currentAccuracy = null;
   let startMarker = null;
   let currentLayer = null;
-  
-  // High-accuracy GPS options
+
+  // ✅ Added: For GPS path tracking
+  let gpsPath = [];           // Stores full path points
+  let gpsPolyline = null;     // Leaflet polyline for path trace
+
   const gpsOptions = {
     enableHighAccuracy: true,
     timeout: 30000,
     maximumAge: 0
   };
 
-  // Map layer configurations with fallbacks
   const mapLayers = {
     satellite: [
       {
@@ -310,11 +318,7 @@
 
   function initializeMap(lat, lon) {
     map = L.map('map').setView([lat, lon], 19);
-    
-    // Initialize with satellite layer
     loadMapLayer('satellite');
-    
-    // Add start location marker
     startMarker = L.marker([lat, lon], {
       icon: L.divIcon({
         className: 'start-marker',
@@ -323,48 +327,38 @@
         iconAnchor: [15, 15]
       })
     }).addTo(map).bindPopup("Start Location").openPopup();
-    
-    // Start continuous GPS monitoring
     startGPSMonitoring();
     updateStatus("Map initialized. GPS monitoring active.");
   }
 
   function loadMapLayer(layerType) {
     const layers = mapLayers[layerType];
-    
     if (currentLayer) {
       map.removeLayer(currentLayer);
     }
-    
-    // Try each layer until one works
     function tryLayer(index) {
       if (index >= layers.length) {
         console.error("All map layers failed to load");
         updateStatus("Map layer failed to load. Please check your internet connection.");
         return;
       }
-      
       const layerConfig = layers[index];
       const layer = L.tileLayer(layerConfig.url, {
         attribution: layerConfig.attribution,
         maxZoom: 20,
         subdomains: ['a', 'b', 'c']
       });
-      
       layer.on('tileerror', function() {
         console.log(`Layer ${layerConfig.name} failed, trying next...`);
         tryLayer(index + 1);
       });
-      
       layer.on('tileload', function() {
         console.log(`Layer ${layerConfig.name} loaded successfully`);
         currentLayer = layer;
       });
-      
       layer.addTo(map);
       currentLayer = layer;
     }
-    
     tryLayer(0);
   }
 
@@ -387,10 +381,15 @@
   function updateGPSInfo(position) {
     const accuracy = Math.round(position.coords.accuracy);
     currentAccuracy = accuracy;
-    
+
+    // ✅ Added: Save current position to path and draw it
+    const currentPos = [position.coords.latitude, position.coords.longitude];
+    gpsPath.push(currentPos);
+    drawGPSPath();
+
     let accuracyClass = 'accuracy-poor';
     let accuracyText = 'Poor';
-    
+
     if (accuracy <= 3) {
       accuracyClass = 'accuracy-good';
       accuracyText = 'Excellent';
@@ -398,23 +397,33 @@
       accuracyClass = 'accuracy-fair';
       accuracyText = 'Good';
     }
-    
+
     document.getElementById('gpsAccuracy').innerHTML = `
       GPS Accuracy: ${accuracy}m 
       <span class="accuracy-indicator ${accuracyClass}">${accuracyText}</span>
       <br>Speed: ${position.coords.speed ? Math.round(position.coords.speed * 3.6) : 0} km/h
     `;
-    
-    // Auto-capture logic
+
     if (autoCapture && accuracy <= 8) {
-      const currentPos = [position.coords.latitude, position.coords.longitude];
       const minDistance = parseInt(document.getElementById('autoDistance').value);
-      
       if (!lastAutoPoint || calculateDistance(lastAutoPoint, currentPos) >= minDistance) {
         capturePointAtLocation(currentPos, accuracy);
         lastAutoPoint = currentPos;
       }
     }
+  }
+
+  // ✅ Added: Draw the GPS path as a dashed polyline
+  function drawGPSPath() {
+    if (gpsPolyline) {
+      map.removeLayer(gpsPolyline);
+    }
+    gpsPolyline = L.polyline(gpsPath, {
+      color: '#007bff',
+      weight: 3,
+      opacity: 0.7,
+      dashArray: '5, 5'
+    }).addTo(map);
   }
 
   function handleGPSError(error) {
@@ -436,7 +445,7 @@
   }
 
   function calculateDistance(pos1, pos2) {
-    const R = 6371e3; // Earth's radius in meters
+    const R = 6371e3;
     const φ1 = pos1[0] * Math.PI/180;
     const φ2 = pos2[0] * Math.PI/180;
     const Δφ = (pos2[0]-pos1[0]) * Math.PI/180;
@@ -459,8 +468,6 @@
         fillOpacity: 0.3,
         weight: 3
       }).addTo(map);
-      
-      // Calculate and display area
       if (points.length >= 3) {
         const area = calculatePolygonArea(points);
         document.getElementById('areaInfo').innerHTML = `
@@ -473,17 +480,14 @@
   function calculatePolygonArea(coords) {
     let area = 0;
     const numPoints = coords.length;
-    
     for (let i = 0; i < numPoints; i++) {
       const j = (i + 1) % numPoints;
       const xi = coords[i][0] * Math.PI / 180;
       const yi = coords[i][1] * Math.PI / 180;
       const xj = coords[j][0] * Math.PI / 180;
       const yj = coords[j][1] * Math.PI / 180;
-      
       area += (yj - yi) * (2 + Math.sin(xi) + Math.sin(xj));
     }
-    
     area = Math.abs(area) * 6378137 * 6378137 / 2;
     return area;
   }
@@ -494,7 +498,6 @@
         return;
       }
     }
-    
     navigator.geolocation.getCurrentPosition(pos => {
       const latlng = [pos.coords.latitude, pos.coords.longitude];
       capturePointAtLocation(latlng, pos.coords.accuracy);
@@ -505,29 +508,18 @@
 
   function capturePointAtLocation(latlng, accuracy) {
     points.push(latlng);
-    
     const marker = L.marker(latlng, { 
-      draggable: true,
-      icon: L.divIcon({
-        className: 'point-marker',
-        html: `${points.length}`,
-        iconSize: [25, 25],
-        iconAnchor: [12, 12]
-      })
+      draggable: true
     }).addTo(map);
-    
     marker.bindPopup(`Point ${points.length}<br>Accuracy: ${Math.round(accuracy)}m`);
-    
     marker.on('drag', function(e) {
       const index = markers.indexOf(marker);
       const newLatLng = [e.latlng.lat, e.latlng.lng];
       points[index] = newLatLng;
       drawPolygon();
     });
-
     markers.push(marker);
     drawPolygon();
-    
     document.getElementById('pointCount').textContent = points.length;
     updateStatus(`Point ${points.length} captured (±${Math.round(accuracy)}m)`);
   }
@@ -557,105 +549,10 @@
     document.getElementById('statusText').textContent = message;
   }
 
-  function exportGeoJSON() {
-    if (points.length < 3) {
-      alert("At least 3 points needed to export a polygon.");
-      return;
-    }
-    
-    const name = document.getElementById("farmName").value || "Unnamed Farm";
-    const area = calculatePolygonArea(points);
-    
-    const geojson = {
-      type: "FeatureCollection",
-      features: [{
-        type: "Feature",
-        properties: { 
-          name: name,
-          area_sqm: Math.round(area),
-          area_hectares: Math.round(area/10000 * 10000) / 10000,
-          points_count: points.length,
-          created_date: new Date().toISOString(),
-          coordinates_system: "WGS84",
-          precision_note: "GPS accuracy varied during capture"
-        },
-        geometry: {
-          type: "Polygon",
-          coordinates: [[...points.map(p => [p[1], p[0]]), [points[0][1], points[0][0]]]]
-        }
-      }]
-    };
-
-    downloadFile(JSON.stringify(geojson, null, 2), name + ".geojson", "application/json");
-    updateStatus("GeoJSON exported successfully!");
-  }
-
-  function exportCSV() {
-    if (points.length === 0) {
-      alert("No points to export.");
-      return;
-    }
-    
-    const name = document.getElementById("farmName").value || "Unnamed Farm";
-    let csvContent = "Point_Number,Latitude,Longitude,Timestamp\n";
-    points.forEach((p, index) => {
-      csvContent += `${index + 1},${p[0]},${p[1]},${new Date().toISOString()}\n`;
-    });
-
-    downloadFile(csvContent, name + ".csv", "text/csv");
-    updateStatus("CSV exported successfully!");
-  }
-
-  function exportKML() {
-    if (points.length < 3) {
-      alert("At least 3 points needed to export a polygon.");
-      return;
-    }
-    
-    const name = document.getElementById("farmName").value || "Unnamed Farm";
-    const area = calculatePolygonArea(points);
-    
-    const kml = `<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-  <Document>
-    <name>${name}</name>
-    <description>Farm boundary with area: ${Math.round(area)} m² (${(area/10000).toFixed(4)} hectares)</description>
-    <Placemark>
-      <name>${name}</name>
-      <description>Points: ${points.length}</description>
-      <Polygon>
-        <outerBoundaryIs>
-          <LinearRing>
-            <coordinates>
-              ${points.map(p => `${p[1]},${p[0]},0`).join('\n              ')}
-              ${points[0][1]},${points[0][0]},0
-            </coordinates>
-          </LinearRing>
-        </outerBoundaryIs>
-      </Polygon>
-    </Placemark>
-  </Document>
-</kml>`;
-
-    downloadFile(kml, name + ".kml", "application/vnd.google-earth.kml+xml");
-    updateStatus("KML exported successfully!");
-  }
-
-  function downloadFile(content, filename, contentType) {
-    const blob = new Blob([content], { type: contentType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename.replace(/\s+/g, '_');
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   function clearAllPoints() {
     if (points.length > 0 && !confirm("Are you sure you want to clear all points?")) {
       return;
     }
-    
     points = [];
     markers.forEach(marker => map.removeLayer(marker));
     markers = [];
@@ -663,12 +560,114 @@
       map.removeLayer(poly);
       poly = null;
     }
+
+    // ✅ Clear GPS path
+    gpsPath = [];
+    if (gpsPolyline) {
+      map.removeLayer(gpsPolyline);
+      gpsPolyline = null;
+    }
+
     document.getElementById('pointCount').textContent = 0;
     document.getElementById('areaInfo').innerHTML = '';
     updateStatus("All points cleared.");
   }
 
-  // Initialize the app
+  // Fixed download functions
+  function exportGeoJSON() {
+    if (points.length < 3) {
+      alert("Need at least 3 points to create a polygon");
+      return;
+    }
+    
+    const farmName = document.getElementById('farmName').value || 'Unnamed Farm';
+    const area = calculatePolygonArea(points);
+    
+    const geojson = {
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        properties: {
+          name: farmName,
+          area_m2: area,
+          area_hectares: area / 10000,
+          point_count: points.length,
+          created: new Date().toISOString()
+        },
+        geometry: {
+          type: "Polygon",
+          coordinates: [points.map(p => [p[1], p[0]]).concat([[points[0][1], points[0][0]]])]
+        }
+      }]
+    };
+    
+    downloadFile(JSON.stringify(geojson, null, 2), `${farmName}_polygon.geojson`, 'application/json');
+    updateStatus("GeoJSON exported successfully");
+  }
+
+  function exportCSV() {
+    if (points.length === 0) {
+      alert("No points to export");
+      return;
+    }
+    
+    const farmName = document.getElementById('farmName').value || 'Unnamed Farm';
+    let csv = "Farm Name,Point Number,Latitude,Longitude,Timestamp\n";
+    
+    points.forEach((point, index) => {
+      csv += `"${farmName}",${index + 1},${point[0]},${point[1]},${new Date().toISOString()}\n`;
+    });
+    
+    downloadFile(csv, `${farmName}_points.csv`, 'text/csv');
+    updateStatus("CSV exported successfully");
+  }
+
+  function exportKML() {
+    if (points.length < 3) {
+      alert("Need at least 3 points to create a polygon");
+      return;
+    }
+    
+    const farmName = document.getElementById('farmName').value || 'Unnamed Farm';
+    const area = calculatePolygonArea(points);
+    
+    const coordinates = points.map(p => `${p[1]},${p[0]},0`).join(' ') + ` ${points[0][1]},${points[0][0]},0`;
+    
+    const kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${farmName}</name>
+    <description>Farm polygon mapped on ${new Date().toLocaleDateString()}</description>
+    <Placemark>
+      <name>${farmName}</name>
+      <description>Area: ${area.toFixed(2)} m² (${(area/10000).toFixed(4)} hectares)</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>${coordinates}</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>`;
+    
+    downloadFile(kml, `${farmName}_polygon.kml`, 'application/vnd.google-earth.kml+xml');
+    updateStatus("KML exported successfully");
+  }
+
+  function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   window.onload = () => {
     navigator.geolocation.getCurrentPosition(pos => {
       const lat = pos.coords.latitude;
@@ -676,38 +675,16 @@
       initializeMap(lat, lon);
     }, err => {
       alert("Unable to access location. Please enable GPS and refresh the page.");
-      // Default to a generic location
       initializeMap(20.5937, 78.9629);
     }, gpsOptions);
   };
 
-  // Cleanup on page unload
   window.onbeforeunload = () => {
     if (watchId) {
       navigator.geolocation.clearWatch(watchId);
     }
   };
 </script>
-
-<style>
-  .point-marker {
-    background-color: #4CAF50;
-    color: white;
-    border-radius: 50%;
-    text-align: center;
-    line-height: 25px;
-    font-weight: bold;
-    font-size: 12px;
-    border: 2px solid white;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-  }
-  
-  .start-marker {
-    font-size: 20px;
-    text-align: center;
-    line-height: 30px;
-  }
-</style>
 
 </body>
 </html>
