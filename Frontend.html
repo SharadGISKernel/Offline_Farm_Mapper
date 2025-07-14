@@ -172,15 +172,6 @@
       transform: translateX(26px);
     }
     
-    .save-info {
-      background: #e3f2fd;
-      padding: 15px;
-      border-radius: 6px;
-      margin: 10px 0;
-      border-left: 4px solid #2196F3;
-      font-size: 14px;
-    }
-    
     .start-marker {
       font-size: 20px;
       text-align: center;
@@ -239,14 +230,6 @@
     <div>📊 Status: <span id="statusText">Ready to start mapping</span></div>
     <div id="gpsAccuracy" class="gps-info">GPS Accuracy: Checking...</div>
     <div id="areaInfo" style="margin-top: 10px;"></div>
-  </div>
-  
-  <div class="save-info">
-    <strong>💾 How Polygon Data is Saved:</strong><br>
-    • <strong>GeoJSON:</strong> Industry standard format with coordinates, properties, and metadata<br>
-    • <strong>CSV:</strong> Simple spreadsheet format with point coordinates<br>
-    • <strong>KML:</strong> Google Earth compatible format for visualization<br>
-    • Data includes: Farm name, area calculations, point count, and creation timestamp
   </div>
   
   <div id="map"></div>
@@ -330,7 +313,7 @@
     startGPSMonitoring();
     updateStatus("Map initialized. GPS monitoring active.");
   }
-
+  
   function loadMapLayer(layerType) {
     const layers = mapLayers[layerType];
     if (currentLayer) {
