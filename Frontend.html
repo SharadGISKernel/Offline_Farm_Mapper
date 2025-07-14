@@ -4,6 +4,8 @@
   <title>High-Accuracy Farm Polygon Mapper</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+
   <style>
     body { 
       font-family: Arial, sans-serif; 
@@ -165,51 +167,163 @@
     }
     
     @media (max-width: 600px) {
-      .controls { flex-direction: column; }
       button { width: 100%; }
       input[type="text"] { width: 100%; }
+      /* .controls{flex-wrap: nowrap;} */
     }
+  </style>
+    <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      background-color: #f2f2f2;
+      padding: 0;
+    }
+    .container {
+      padding: 1rem;
+      max-width: 100%;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    }
+    h2 {
+      text-align: center;
+      color: #2e5d34;
+      font-weight: 600;
+    }
+    .controls, .auto-capture {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 12px;
+      margin: 1rem 0;
+      justify-content: center;
+      align-items: center;
+    }
+    .status-panel {
+      background: #f0fdf4;
+      padding: 1rem;
+      font-size: 14px;
+      border-left: 5px solid #4CAF50;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+    }
+    .gps-info {
+      background: #fff8e1;
+      border-left: 5px solid #ff9800;
+      font-size: 12px;
+      padding: 0.75rem;
+      border-radius: 6px;
+      margin-top: 0.5rem;
+    }
+    input[type="text"], input[type="number"] {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      min-width: 160px;
+    }
+    .point-counter {
+      font-weight: bold;
+      color: #2e5d34;
+    }
+    .icon-btn {
+      background-color: #f1f1f1;
+      border: 1px solid #4caf50;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 10px 12px;
+      border-radius: 8px;
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+      color: #dfdfdf;
+    }
+    .icon-btn:hover {
+      background: #f2f2f2;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .icon-btn i {
+      pointer-events: none;
+    }
+    .dropdown {
+      position: relative;
+    }
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      background-color: #fff;
+      box-shadow: 0px 8px 20px rgba(0,0,0,0.15);
+      z-index: 10;
+      min-width: 160px;
+      right: 0;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .dropdown-content button {
+      width: 100%;
+      border: none;
+      background: none;
+      text-align: left;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .dropdown-content button:hover {
+      background-color: #f5f5f5;
+    }
+    .dropdown:hover .dropdown-content {
+      display: block;
+    }
+    #map {
+      height: 65vh;
+      border-radius: 10px;
+      margin-top: 1rem;
+      border: 2px solid #e0e0e0;
+    }
+    
   </style>
 </head>
 <body>
 
-<div class="container">
-  <h2>🌾 High-Accuracy Farm Polygon Mapper</h2>
-  
-  <div class="controls">
-    <input type="text" id="farmName" placeholder="Enter Farm Name" />
-    <span class="point-counter">Points: <span id="pointCount">0</span></span>
+    <div class="container">
+    <h2>🌾 Farm Polygon Mapper</h2>
+    <div class="controls">
+      <input type="text" id="farmName" placeholder="Farm Name">
+      <span class="point-counter">Points: <span id="pointCount">0</span></span>
+    </div>
+    <div class="auto-capture">
+      <label class="switch">
+        <input type="checkbox" id="autoCapture">
+        <span class="slider"></span>
+      </label>
+      <label>Auto (m):</label>
+      <input type="number" id="autoDistance" value="1" min="1" max="50" style="width: 60px;">
+    </div>
+    <div class="controls">
+      <button class="icon-btn" onclick="capturePoint()" title="Add Point" style="
+    background: #76d876;
+"><i class="fas fa-map-marker-alt"></i></button>
+      <button class="icon-btn" onclick="undoLastPoint()" title="Undo" style="
+    background: orange;
+"><i class="fas fa-undo"></i></button>
+      <button class="icon-btn" onclick="clearPoints()" title="Clear" style="
+    background: #ff411f;
+"><i class="fas fa-trash"></i></button>
+      <div class="dropdown">
+        <button class="icon-btn" title="Download" style=" background: #5d75e8;"><i class="fas fa-download"></i></button>
+        <div class="dropdown-content">
+          <button onclick="exportGeoJSON()">GeoJSON</button>
+          <button onclick="exportCSV()">CSV</button>
+          <button onclick="exportKML()">KML</button>
+        </div>
+      </div>
+    </div>
+    <div class="status-panel">
+      <div>Status: <span id="statusText">Waiting for GPS...</span></div>
+      <div id="gpsAccuracy" class="gps-info">GPS Accuracy: --</div>
+      <div id="areaInfo"></div>
+    </div>
+    <div id="map"></div>
   </div>
-  
-  <div class="auto-capture">
-    <label for="autoCapture">Auto-capture mode:</label>
-    <label class="switch">
-      <input type="checkbox" id="autoCapture" onchange="toggleAutoCapture()">
-      <span class="slider"></span>
-    </label>
-    <span>Distance: <input type="number" id="autoDistance" value="5" min="1" max="50" style="width: 60px;"> meters</span>
-  </div>
-  
-  <div class="controls">
-    <button class="btn-primary" onclick="capturePoint()">📍 Add Point</button>
-    <button class="btn-warning" onclick="undoLastPoint()">↶ Undo Last</button>
-    <button class="btn-danger" onclick="clearAllPoints()">🗑️ Clear All</button>
-  </div>
-  
-  <div class="controls">
-    <button class="btn-secondary" onclick="exportGeoJSON()">📥 Download GeoJSON</button>
-    <button class="btn-secondary" onclick="exportCSV()">📊 Download CSV</button>
-    <button class="btn-secondary" onclick="exportKML()">🗺️ Download KML</button>
-  </div>
-  
-  <div class="status-panel">
-    <div>📊 Status: <span id="statusText">Ready to start mapping</span></div>
-    <div id="gpsAccuracy" class="gps-info">GPS Accuracy: Checking...</div>
-    <div id="areaInfo" style="margin-top: 10px;"></div>
-  </div>
-  
-  <div id="map"></div>
-</div>
 
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 <script>
