@@ -292,7 +292,7 @@
     </div>
     <div class="auto-capture">
       <label class="switch">
-        <input type="checkbox" id="autoCapture">
+        <input type="checkbox" id="autoCapture" onchange="toggleAutoCapture()">
         <span class="slider"></span>
       </label>
       <label>Auto (m):</label>
@@ -449,11 +449,21 @@
       <br>Speed: ${position.coords.speed ? Math.round(position.coords.speed * 3.6) : 0} km/h
     `;
 
-    if (autoCapture && accuracy <= 8) {
+    // Auto-capture logic - fixed to work properly
+    if (autoCapture) {
       const minDistance = parseInt(document.getElementById('autoDistance').value);
-      if (!lastAutoPoint || calculateDistance(lastAutoPoint, currentPos) >= minDistance) {
+      
+      if (!lastAutoPoint) {
+        // First auto point
         capturePointAtLocation(currentPos, accuracy);
         lastAutoPoint = currentPos;
+      } else {
+        // Check distance from last auto point
+        const distance = calculateDistance(lastAutoPoint, currentPos);
+        if (distance >= minDistance) {
+          capturePointAtLocation(currentPos, accuracy);
+          lastAutoPoint = currentPos;
+        }
       }
     }
   }
@@ -640,9 +650,10 @@
     autoCapture = document.getElementById('autoCapture').checked;
     if (autoCapture) {
       updateStatus("Auto-capture mode enabled. Walk around the boundary.");
-      lastAutoPoint = null;
+      lastAutoPoint = null; // Reset last auto point
     } else {
       updateStatus("Auto-capture mode disabled.");
+      lastAutoPoint = null; // Reset last auto point
     }
   }
 
@@ -657,6 +668,7 @@
     points = [];
     pathSegments = [];
     currentSegment = [];
+    lastAutoPoint = null; // Reset auto capture point
     markers.forEach(marker => map.removeLayer(marker));
     markers = [];
     if (poly) {
