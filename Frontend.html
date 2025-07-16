@@ -169,10 +169,9 @@
     @media (max-width: 600px) {
       button { width: 100%; }
       input[type="text"] { width: 100%; }
-      /* .controls{flex-wrap: nowrap;} */
     }
   </style>
-    <style>
+  <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
@@ -279,51 +278,44 @@
       margin-top: 1rem;
       border: 2px solid #e0e0e0;
     }
-    
   </style>
 </head>
 <body>
 
-    <div class="container">
-    <h2>🌾 Farm Polygon Mapper</h2>
-    <div class="controls">
-      <input type="text" id="farmName" placeholder="Farm Name">
-      <span class="point-counter">Points: <span id="pointCount">0</span></span>
-    </div>
-    <div class="auto-capture">
-      <label class="switch">
-        <input type="checkbox" id="autoCapture" onchange="toggleAutoCapture()">
-        <span class="slider"></span>
-      </label>
-      <label>Auto (m):</label>
-      <input type="number" id="autoDistance" value="1" min="1" max="50" style="width: 60px;">
-    </div>
-    <div class="controls">
-      <button class="icon-btn" onclick="capturePoint()" title="Add Point" style="
-    background: #76d876;
-"><i class="fas fa-map-marker-alt"></i></button>
-      <button class="icon-btn" onclick="undoLastPoint()" title="Undo" style="
-    background: orange;
-"><i class="fas fa-undo"></i></button>
-      <button class="icon-btn" onclick="clearAllPoints()" title="Clear" style="
-    background: #ff411f;
-"><i class="fas fa-trash"></i></button>
-      <div class="dropdown">
-        <button class="icon-btn" title="Download" style=" background: #5d75e8;"><i class="fas fa-download"></i></button>
-        <div class="dropdown-content">
-          <button onclick="exportGeoJSON()">GeoJSON</button>
-          <button onclick="exportCSV()">CSV</button>
-          <button onclick="exportKML()">KML</button>
-        </div>
+<div class="container">
+  <h2>🌾 Farm Polygon Mapper</h2>
+  <div class="controls">
+    <input type="text" id="farmName" placeholder="Farm Name">
+    <span class="point-counter">Points: <span id="pointCount">0</span></span>
+  </div>
+  <div class="auto-capture">
+    <label class="switch">
+      <input type="checkbox" id="autoCapture" onchange="toggleAutoCapture()">
+      <span class="slider"></span>
+    </label>
+    <label>Auto (m):</label>
+    <input type="number" id="autoDistance" value="1" min="1" max="50" style="width: 60px;">
+  </div>
+  <div class="controls">
+    <button class="icon-btn" onclick="capturePoint()" title="Add Point" style="background: #76d876;"><i class="fas fa-map-marker-alt"></i></button>
+    <button class="icon-btn" onclick="undoLastPoint()" title="Undo" style="background: orange;"><i class="fas fa-undo"></i></button>
+    <button class="icon-btn" onclick="clearAllPoints()" title="Clear" style="background: #ff411f;"><i class="fas fa-trash"></i></button>
+    <div class="dropdown">
+      <button class="icon-btn" title="Download" style="background: #5d75e8;"><i class="fas fa-download"></i></button>
+      <div class="dropdown-content">
+        <button onclick="exportGeoJSON()">GeoJSON</button>
+        <button onclick="exportCSV()">CSV</button>
+        <button onclick="exportKML()">KML</button>
       </div>
     </div>
-    <div class="status-panel">
-      <div>Status: <span id="statusText">Waiting for GPS...</span></div>
-      <div id="gpsAccuracy" class="gps-info">GPS Accuracy: --</div>
-      <div id="areaInfo"></div>
-    </div>
-    <div id="map"></div>
   </div>
+  <div class="status-panel">
+    <div>Status: <span id="statusText">Waiting for GPS...</span></div>
+    <div id="gpsAccuracy" class="gps-info">GPS Accuracy: --</div>
+    <div id="areaInfo"></div>
+  </div>
+  <div id="map"></div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 <script>
@@ -518,7 +510,7 @@
     if (poly) map.removeLayer(poly);
     
     if (points.length >= 2) {
-      // For polygon drawing, always use the current points array directly
+      // Always use the current points array for drawing
       let polygonPath = points.slice();
       
       if (points.length >= 3) {
@@ -544,23 +536,6 @@
         }).addTo(map);
       }
     }
-  }
-
-  function findPathBetweenPoints(point1, point2) {
-    // Find the GPS path between two points
-    // This is a simplified version - in a real implementation, 
-    // you might want to find the actual path more precisely
-    const startIndex = gpsPath.findIndex(p => 
-      Math.abs(p[0] - point1[0]) < 0.0001 && Math.abs(p[1] - point1[1]) < 0.0001
-    );
-    const endIndex = gpsPath.findIndex(p => 
-      Math.abs(p[0] - point2[0]) < 0.0001 && Math.abs(p[1] - point2[1]) < 0.0001
-    );
-    
-    if (startIndex !== -1 && endIndex !== -1) {
-      return gpsPath.slice(startIndex, endIndex + 1);
-    }
-    return [];
   }
 
   function calculatePolygonArea(coords) {
@@ -606,12 +581,21 @@
     }).addTo(map);
     marker.bindPopup(`Point ${points.length}<br>Accuracy: ${Math.round(accuracy)}m`);
     
-    // Fixed drag event handler
+    // Fixed drag event handler with proper index tracking
     marker.on('dragend', function(e) {
       const index = markers.indexOf(marker);
       const newLatLng = [e.target.getLatLng().lat, e.target.getLatLng().lng];
+      
+      // Update the points array with the new position
       points[index] = newLatLng;
-      drawPolygon(); // Redraw polygon with updated point
+      
+      // Update the popup to show it was manually adjusted
+      marker.bindPopup(`Point ${index + 1}<br>Manually adjusted`);
+      
+      // Redraw polygon with updated point
+      drawPolygon();
+      
+      updateStatus(`Point ${index + 1} moved to new position`);
     });
     
     markers.push(marker);
@@ -682,17 +666,9 @@
     
     const farmName = document.getElementById('farmName').value || 'Unnamed Farm';
     
-    // Create the polygon path using GPS path segments
-    let polygonPath = [];
-    if (pathSegments.length > 0) {
-      for (let i = 0; i < pathSegments.length; i++) {
-        polygonPath = polygonPath.concat(pathSegments[i]);
-      }
-    } else {
-      polygonPath = points.slice();
-    }
-    
-    const area = calculatePolygonArea(polygonPath);
+    // Use the current points array (which includes manual adjustments)
+    const polygonPath = points.slice();
+    const area = calculatePolygonArea([...polygonPath, polygonPath[0]]);
     
     const geojson = {
       type: "FeatureCollection",
@@ -703,8 +679,8 @@
           area_m2: area,
           area_hectares: area / 10000,
           point_count: points.length,
-          path_points: polygonPath.length,
-          created: new Date().toISOString()
+          created: new Date().toISOString(),
+          note: "Polygon includes manual adjustments"
         },
         geometry: {
           type: "Polygon",
@@ -714,7 +690,7 @@
     };
     
     downloadFile(JSON.stringify(geojson, null, 2), `${farmName}_polygon.geojson`, 'application/json');
-    updateStatus("GeoJSON exported successfully");
+    updateStatus("GeoJSON exported successfully with current polygon shape");
   }
 
   function exportCSV() {
@@ -724,14 +700,14 @@
     }
     
     const farmName = document.getElementById('farmName').value || 'Unnamed Farm';
-    let csv = "Farm Name,Point Number,Latitude,Longitude,Timestamp\n";
+    let csv = "Farm Name,Point Number,Latitude,Longitude,Timestamp,Status\n";
     
     points.forEach((point, index) => {
-      csv += `"${farmName}",${index + 1},${point[0]},${point[1]},${new Date().toISOString()}\n`;
+      csv += `"${farmName}",${index + 1},${point[0]},${point[1]},${new Date().toISOString()},"Current Position"\n`;
     });
     
     downloadFile(csv, `${farmName}_points.csv`, 'text/csv');
-    updateStatus("CSV exported successfully");
+    updateStatus("CSV exported successfully with current point positions");
   }
 
   function exportKML() {
@@ -742,17 +718,9 @@
     
     const farmName = document.getElementById('farmName').value || 'Unnamed Farm';
     
-    // Create the polygon path using GPS path segments
-    let polygonPath = [];
-    if (pathSegments.length > 0) {
-      for (let i = 0; i < pathSegments.length; i++) {
-        polygonPath = polygonPath.concat(pathSegments[i]);
-      }
-    } else {
-      polygonPath = points.slice();
-    }
-    
-    const area = calculatePolygonArea(polygonPath);
+    // Use the current points array (which includes manual adjustments)
+    const polygonPath = points.slice();
+    const area = calculatePolygonArea([...polygonPath, polygonPath[0]]);
     const coordinates = polygonPath.map(p => `${p[1]},${p[0]},0`).join(' ') + ` ${polygonPath[0][1]},${polygonPath[0][0]},0`;
     
     const kml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -762,7 +730,7 @@
     <description>Farm polygon mapped on ${new Date().toLocaleDateString()}</description>
     <Placemark>
       <name>${farmName}</name>
-      <description>Area: ${area.toFixed(2)} m² (${(area/10000).toFixed(4)} hectares)</description>
+      <description>Area: ${area.toFixed(2)} m² (${(area/10000).toFixed(4)} hectares)<br/>Polygon includes manual adjustments</description>
       <Polygon>
         <outerBoundaryIs>
           <LinearRing>
@@ -775,7 +743,7 @@
 </kml>`;
     
     downloadFile(kml, `${farmName}_polygon.kml`, 'application/vnd.google-earth.kml+xml');
-    updateStatus("KML exported successfully");
+    updateStatus("KML exported successfully with current polygon shape");
   }
 
   function downloadFile(content, filename, mimeType) {
