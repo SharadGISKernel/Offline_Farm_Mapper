@@ -518,34 +518,13 @@
     if (poly) map.removeLayer(poly);
     
     if (points.length >= 2) {
-      // Create the polygon path using GPS path segments
-      let polygonPath = [];
+      // For polygon drawing, always use the current points array directly
+      let polygonPath = points.slice();
       
-      if (pathSegments.length > 0) {
-        // Use the actual GPS path segments between points
-        for (let i = 0; i < pathSegments.length; i++) {
-          polygonPath = polygonPath.concat(pathSegments[i]);
-        }
+      if (points.length >= 3) {
+        // Close the polygon for 3 or more points
+        polygonPath.push(points[0]);
         
-        // If we have more than 2 points, close the polygon by connecting last point to first
-        if (points.length >= 3 && pathSegments.length >= 2) {
-          // Add path from last point back to first point if available
-          const lastSegment = pathSegments[pathSegments.length - 1];
-          const firstPoint = points[0];
-          const lastPoint = points[points.length - 1];
-          
-          // Find GPS path from last point to first point to close the polygon
-          const closingPath = findPathBetweenPoints(lastPoint, firstPoint);
-          if (closingPath.length > 0) {
-            polygonPath = polygonPath.concat(closingPath);
-          }
-        }
-      } else {
-        // Fallback: if no path segments, use direct lines between points
-        polygonPath = points.slice();
-      }
-      
-      if (polygonPath.length > 2) {
         poly = L.polygon(polygonPath, { 
           color: '#4CAF50', 
           fillColor: '#4CAF50',
@@ -553,12 +532,16 @@
           weight: 3
         }).addTo(map);
         
-        if (points.length >= 3) {
-          const area = calculatePolygonArea(polygonPath);
-          document.getElementById('areaInfo').innerHTML = `
-            📐 Area: ${area.toFixed(2)} m² (${(area/10000).toFixed(4)} hectares)
-          `;
-        }
+        const area = calculatePolygonArea(polygonPath);
+        document.getElementById('areaInfo').innerHTML = `
+          📐 Area: ${area.toFixed(2)} m² (${(area/10000).toFixed(4)} hectares)
+        `;
+      } else {
+        // For 2 points, just draw a line
+        poly = L.polyline(polygonPath, { 
+          color: '#4CAF50', 
+          weight: 3
+        }).addTo(map);
       }
     }
   }
@@ -622,12 +605,15 @@
       draggable: true
     }).addTo(map);
     marker.bindPopup(`Point ${points.length}<br>Accuracy: ${Math.round(accuracy)}m`);
-    marker.on('drag', function(e) {
+    
+    // Fixed drag event handler
+    marker.on('dragend', function(e) {
       const index = markers.indexOf(marker);
-      const newLatLng = [e.latlng.lat, e.latlng.lng];
+      const newLatLng = [e.target.getLatLng().lat, e.target.getLatLng().lng];
       points[index] = newLatLng;
-      drawPolygon();
+      drawPolygon(); // Redraw polygon with updated point
     });
+    
     markers.push(marker);
     drawPolygon();
     document.getElementById('pointCount').textContent = points.length;
